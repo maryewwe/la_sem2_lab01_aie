@@ -115,9 +115,9 @@ def _numerical_rank(
     first_val = abs(float(S[0]))
     limit = max(abs_tol, rel_tol * first_val)
 
-    rank = 0
+    rank = total
     for j in range(total):
-        if float(S[j]) <= limit:
+        if abs(float(S[j])) <= limit:
             rank = j
             break
 
