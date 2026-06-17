@@ -31,7 +31,8 @@ def left_canonicalize(tt: TTTensor, backend: BackendInterface) -> TTTensor:
         cols = sh[2]
         matrix = backend.reshape(cores[k], (rows, cols))
         U, S, Vt = backend.svd(matrix, full_matrices=False)
-        rank = _numerical_rank(S)
+        #rank = _numerical_rank(S)
+        rank = backend.shape(S)[0]
 
         U_trunc = _truncate_columns(U, rank, backend)
         cores[k] = backend.copy(
@@ -40,8 +41,11 @@ def left_canonicalize(tt: TTTensor, backend: BackendInterface) -> TTTensor:
 
         S_trunc = _truncate_vector(S, rank, backend)
         Vt_trunc = _truncate_rows(Vt, rank, backend)
-        remind = _multiply_diag_matrix(S_trunc, Vt_trunc, rank, backend)
 
+        remind = backend.matmul(
+            backend.diag(S_trunc),
+            Vt_trunc
+        )
         next_core = cores[k + 1]
         next_sh = backend.shape(next_core)
         next_matrix = backend.reshape(next_core, (next_sh[0], next_sh[1] * next_sh[2]))
@@ -73,14 +77,19 @@ def right_canonicalize(tt: TTTensor, backend: BackendInterface) -> TTTensor:
         matrix = backend.reshape(cores[k], (rows, cols))
 
         U, S, Vt = backend.svd(matrix, full_matrices=False)
-        rank = _numerical_rank(S)
+        #rank = _numerical_rank(S)
+        rank = backend.shape(S)[0]
         Vt_trunc = _truncate_rows(Vt, rank, backend)
         cores[k] = backend.copy(
             backend.reshape(Vt_trunc, (rank, sh[1], sh[2]))
         )
         U_trunc = _truncate_columns(U, rank, backend)
         S_trunc = _truncate_vector(S, rank, backend)
-        remind = _multiply_columns_by_diag(U_trunc, S_trunc, backend)
+
+        remind = backend.matmul(
+            U_trunc,
+            backend.diag(S_trunc)
+        )
         prev_core = cores[k - 1]
         prev_sh = backend.shape(prev_core)
         prev_matrix = backend.reshape(prev_core, (prev_sh[0] * prev_sh[1], prev_sh[2]))
@@ -114,7 +123,7 @@ def _numerical_rank(
     """
     total = S.shape[0]
     if total == 0:
-        return 1
+        return 0
 
     first_val = abs(float(S[0]))
     limit = max(abs_tol, rel_tol * first_val)
