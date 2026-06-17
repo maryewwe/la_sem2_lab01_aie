@@ -34,7 +34,9 @@ def left_canonicalize(tt: TTTensor, backend: BackendInterface) -> TTTensor:
         rank = _numerical_rank(S)
 
         U_trunc = _truncate_columns(U, rank, backend)
-        cores[k] = backend.reshape(U_trunc, (sh[0], sh[1], rank))
+        cores[k] = backend.copy(
+            backend.reshape(U_trunc, (sh[0], sh[1], rank))
+        )
 
         S_trunc = _truncate_vector(S, rank, backend)
         Vt_trunc = _truncate_rows(Vt, rank, backend)
@@ -73,7 +75,9 @@ def right_canonicalize(tt: TTTensor, backend: BackendInterface) -> TTTensor:
         U, S, Vt = backend.svd(matrix, full_matrices=False)
         rank = _numerical_rank(S)
         Vt_trunc = _truncate_rows(Vt, rank, backend)
-        cores[k] = backend.reshape(Vt_trunc, (rank, sh[1], sh[2]))
+        cores[k] = backend.copy(
+            backend.reshape(Vt_trunc, (rank, sh[1], sh[2]))
+        )
         U_trunc = _truncate_columns(U, rank, backend)
         S_trunc = _truncate_vector(S, rank, backend)
         remind = _multiply_columns_by_diag(U_trunc, S_trunc, backend)
