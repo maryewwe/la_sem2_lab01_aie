@@ -112,16 +112,16 @@ def _numerical_rank(
     if total == 0:
         return 1
 
-    first_val = float(S[0])
+    first_val = abs(float(S[0]))
     limit = max(abs_tol, rel_tol * first_val)
 
     rank = 0
-
     for j in range(total):
-        if S[j] >= limit:
+        if abs(float(S[j])) > limit:
             rank = j + 1
         else:
             break
+
     return max(1, rank)
 
 

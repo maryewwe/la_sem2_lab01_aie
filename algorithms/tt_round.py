@@ -27,6 +27,40 @@ def tt_round(
         max_rank: максимальный TT-ранг (None = без ограничения)
         eps:      относительная точность усечения
     """
+    if tt.order <= 1:
+        return tt.copy()
+
+    tt = right_canonicalize(tt, backend)
+
+    cores = [backend.copy(c) for c in tt.cores]
+    d = len(cores)
+
+    if d > 1:
+        delta = (eps / math.sqrt(d - 1)) * backend.norm(tt.full())
+    else:
+        delta = 0.0
+
+    for k in range(d - 1):
+        sh = backend.shape(cores[k])
+        matrix = backend.reshape(cores[k], (sh[0] * sh[1], sh[2]))
+
+        U, S, Vt = backend.svd(matrix, full_matrices=False)
+
+        rank = _compute_rank(S, delta, max_rank)
+
+        U_trunc = _truncate_columns(U, rank, backend)
+        S_trunc = _truncate_vector(S, rank, backend)
+        Vt_trunc = _truncate_rows(Vt, rank, backend)
+        cores[k] = backend.reshape(U_trunc, (sh[0], sh[1], rank))
+        remind = _multiply_diag_matrix(S_trunc, Vt_trunc, rank, backend)
+
+        next_sh = backend.shape(cores[k + 1])
+        next_core = backend.reshape(cores[k + 1], (next_sh[0], next_sh[1] * next_sh[2]))
+
+        updated = backend.matmul(remind, next_core)
+        cores[k + 1] = backend.reshape(updated, (rank, next_sh[1], next_sh[2]))
+
+    return TTTensor(cores)
 
 
 
