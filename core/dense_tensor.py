@@ -126,7 +126,7 @@ class DenseTensor:
 
         shape_list = []
         curr = nested
-        while isinstance(curr, list):
+        while isinstance(curr, (list, tuple)):
             shape_list.append(len(curr))
             if len(curr) == 0:
                 break
@@ -150,8 +150,12 @@ class DenseTensor:
             data[flat_idx] = float(lst)
             return
 
-        for i, item in enumerate(lst):
-            DenseTensor._fill_data(item, indices + [i], data, shape, strides)
+        if isinstance(lst, (list, tuple)):
+            for i, item in enumerate(lst):
+                DenseTensor._fill_data(item, indices + [i], data, shape, strides)
+        else:
+            flat_idx = multi_index_to_flat(tuple(indices), strides)
+            data[flat_idx] = float(lst)
 
     # ────────────────────────────────────────────
     # Индексация

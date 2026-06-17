@@ -102,7 +102,7 @@ class TTTensor:
             r_next = full_ranks[k+1]
             data = [random.uniform(-1.0, 1.0) for _ in range(r_prev * n * r_next)]
 
-            core = DenseTensor(data, (r_prev, n, r_next))
+            core = DenseTensor((r_prev, n, r_next), data=data)
             cores.append(core)
 
         return TTTensor(cores)
@@ -149,7 +149,7 @@ class TTTensor:
         for idx in itertools.product(*[range(n) for n in self.shape]):
             full_data.append(self.get_element(idx))
 
-        return DenseTensor(full_data, self.shape)
+        return DenseTensor(self.shape, data=full_data)
 
     # ────────────────────────────────────────────
     # Информация и отладка
