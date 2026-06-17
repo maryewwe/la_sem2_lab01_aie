@@ -118,8 +118,8 @@ def _numerical_rank(
     rank = 0
 
     for j in range(total):
-        if S[j] > limit:
-            rank += 1
+        if S[j] >= limit:
+            rank = j + 1
         else:
             break
     return max(1, rank)
