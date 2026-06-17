@@ -30,28 +30,29 @@ def left_canonicalize(tt: TTTensor, backend: BackendInterface) -> TTTensor:
         rows = sh[0] * sh[1]
         cols = sh[2]
         matrix = backend.reshape(cores[k], (rows, cols))
-        U, S, Vt = backend.svd(matrix, full_matrices=False)
-        #rank = _numerical_rank(S)
-        rank = backend.shape(S)[0]
+        m, n = backend.shape(matrix)
 
-        U_trunc = _truncate_columns(U, rank, backend)
-        cores[k] = backend.copy(
-            backend.reshape(U_trunc, (sh[0], sh[1], rank))
-        )
+        if m >= n:
+            Q, R = backend.qr(matrix)
+            new_rank = backend.shape(Q)[1]
+            cores[k] = backend.reshape(Q,(sh[0], sh[1], new_rank))
+            t = R
 
-        S_trunc = _truncate_vector(S, rank, backend)
-        Vt_trunc = _truncate_rows(Vt, rank, backend)
-
-        remind = backend.matmul(
-            backend.diag(S_trunc),
-            Vt_trunc
-        )
+        else:
+            U, S, Vt = backend.svd(matrix, full_matrices=False)
+            new_rank = backend.shape(S)[0]
+            cores[k] = backend.reshape(U, (sh[0], sh[1], new_rank))
+            t = backend.matmul(backend.diag(S), Vt)
         next_core = cores[k + 1]
-        next_sh = backend.shape(next_core)
-        next_matrix = backend.reshape(next_core, (next_sh[0], next_sh[1] * next_sh[2]))
+        next_shape = backend.shape(next_core)
 
-        updated = backend.matmul(remind, next_matrix)
-        cores[k+1] = backend.reshape(updated, (rank, next_sh[1], next_sh[2]))
+        next_matrix = backend.reshape(
+            next_core,
+            (next_shape[0], next_shape[1] * next_shape[2]))
+
+        p = backend.matmul(t, next_matrix)
+        cores[k + 1] = backend.reshape(p,
+            (new_rank, next_shape[1], next_shape[2]))
 
     return TTTensor(cores)
 
@@ -69,33 +70,33 @@ def right_canonicalize(tt: TTTensor, backend: BackendInterface) -> TTTensor:
     if d <= 1:
         return TTTensor(cores)
 
-
     for k in range(d - 1, 0, -1):
         sh = backend.shape(cores[k])
-        rows = sh[0]
-        cols = sh[1] * sh[2]
-        matrix = backend.reshape(cores[k], (rows, cols))
+        matrix = backend.reshape(cores[k],(sh[0], sh[1] * sh[2]))
+        matrix_t = backend.transpose(matrix)
+        m, n = backend.shape(matrix_t)
 
-        U, S, Vt = backend.svd(matrix, full_matrices=False)
-        #rank = _numerical_rank(S)
-        rank = backend.shape(S)[0]
-        Vt_trunc = _truncate_rows(Vt, rank, backend)
-        cores[k] = backend.copy(
-            backend.reshape(Vt_trunc, (rank, sh[1], sh[2]))
-        )
-        U_trunc = _truncate_columns(U, rank, backend)
-        S_trunc = _truncate_vector(S, rank, backend)
+        if m >= n:
+            Q_t, R_t = backend.qr(matrix_t)
+            Q = backend.transpose(Q_t)
+            rank = backend.shape(Q)[0]
+            cores[k] = backend.reshape(Q,(rank, sh[1], sh[2]))
+            t = backend.transpose(R_t)
 
-        remind = backend.matmul(
-            U_trunc,
-            backend.diag(S_trunc)
-        )
+        else:
+            U, S, Vt = backend.svd(matrix_t,full_matrices=False)
+            Q = backend.transpose(U)
+            rank = backend.shape(Q)[0]
+            cores[k] = backend.reshape(Q, (rank, sh[1], sh[2]))
+            t = backend.transpose(backend.matmul(backend.diag(S),Vt))
+
         prev_core = cores[k - 1]
-        prev_sh = backend.shape(prev_core)
-        prev_matrix = backend.reshape(prev_core, (prev_sh[0] * prev_sh[1], prev_sh[2]))
+        prev_shape = backend.shape(prev_core)
 
-        updated = backend.matmul(prev_matrix, remind)
-        cores[k - 1] = backend.reshape(updated, (prev_sh[0], prev_sh[1], rank))
+        prev_matrix = backend.reshape(prev_core, (prev_shape[0] * prev_shape[1], prev_shape[2]))
+        p = backend.matmul(prev_matrix, t)
+
+        cores[k - 1] = backend.reshape(p, (prev_shape[0], prev_shape[1], rank))
 
     return TTTensor(cores)
 
